@@ -46,11 +46,19 @@ RoundReal32ToInt32(real32 Real32)
     return (Result);
 }
 
+
+#include "math.h"
+inline int32
+FloorReal32ToInt32(real32 Real32)
+{
+    int32 Result = (int32)floorf(Real32);
+    return (Result);
+}
+
 inline int32
 TruncateReal32ToInt32(real32 Real32)
 {
     int32 Result = (int32)Real32;
-    
     return (Result);
 }
 
@@ -121,7 +129,7 @@ GetTileValueUnchecked(world *World, tile_map *TileMap, int32 TestX, int32 TestY)
     return (TileMapValue);
 }
 
-internal bool32
+inline bool32
 IsTileMapPointEmpty(world *World, tile_map *TileMap, int32 TestX, int32 TestY)
 {
     bool32 Empty = false;
@@ -149,8 +157,8 @@ GetCanonicalPosition(world *World, raw_position Pos)
     
     real32 X = Pos.X - World->UpperLeftX;
     real32 Y = Pos.Y - World->UpperLeftY;
-    Result.TileX = TruncateReal32ToInt32((Pos.X - World->UpperLeftX) / World->TileWidth);
-    Result.TileY = TruncateReal32ToInt32((Pos.Y - World->UpperLeftY) / World->TileHeight);
+    Result.TileX = FloorReal32ToInt32((Pos.X - World->UpperLeftX) / World->TileWidth);
+    Result.TileY = FloorReal32ToInt32((Pos.Y - World->UpperLeftY) / World->TileHeight);
     
     Result.X = X - Result.TileX*World->TileWidth;
     Result.Y = Y - Result.TileY*World->TileHeight;
@@ -274,9 +282,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     World.TileWidth = 60.f;
     World.TileHeight = 60.f;
     
-    
     World.TileMaps = (tile_map *)TileMaps;
-    
     
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if (!Memory->IsInitialized)
