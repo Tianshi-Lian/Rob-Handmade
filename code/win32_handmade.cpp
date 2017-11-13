@@ -19,8 +19,6 @@ TODO(rob): This is not final platform layer
  Just a partial list of stuff.
 */
 
-// TODO(rob): Implement sine ourselves.
-
 #include "handmade.h"
 
 #include <malloc.h>
@@ -588,6 +586,7 @@ Win32GetInputFileLocation(win32_state *State, bool32 InputStream,
 internal win32_replay_buffer *
 Win32GetReplayBuffer(win32_state *State, unsigned int Index)
 {
+    Assert(Index > 0);
     Assert(Index < ArrayCount(State->ReplayBuffers));
     win32_replay_buffer *Result = &State->ReplayBuffers[Index];
     return (Result);
@@ -1046,7 +1045,7 @@ WinMain(HINSTANCE Instance,
             GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + 
                                            GameMemory.PermanentStorageSize);
             
-            for (int ReplayIndex = 0; ReplayIndex < ArrayCount(Win32State.ReplayBuffers); ++ ReplayIndex)
+            for (int ReplayIndex = 1; ReplayIndex < ArrayCount(Win32State.ReplayBuffers); ++ ReplayIndex)
             {
                 win32_replay_buffer *ReplayBuffer = &Win32State.ReplayBuffers[ReplayIndex];
                 

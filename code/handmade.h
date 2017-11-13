@@ -37,57 +37,54 @@ inline game_controller_input *GetController(game_input *Input, unsigned int Cont
     return (Result);
 }
 
-struct canonical_position
+struct tile_chunk_position
 {
-    int32 TileMapX;
-    int32 TileMapY;
+    uint32 TileChunkX;
+    uint32 TileChunkY;
     
-    // NOTE(ROB): Tile relative x and y.
-    int32 TileX;
-    int32 TileY;
-    
-    real32 X;
-    real32 Y;
+    uint32 RelTileX;
+    uint32 RelTileY;
 };
 
-struct raw_position
+struct world_position
 {
-    int32 TileMapX;
-    int32 TileMapY;
+    /* TODO(rob):
+    Take the tile map x and y and the tile x and y 
+    and pack them into single 32-bit values for x and y
+    where there is some low bits for the tile index and
+    the high bits are for the tile page.
+    */
+    uint32 AbsTileX;
+    uint32 AbsTileY;
     
-    // NOTE(ROB): Tile map relative x and y.
-    real32 X;
-    real32 Y;
+    real32 TileRelX;
+    real32 TileRelY;
 };
 
-struct tile_map
+struct tile_chunk
 {
     uint32 *Tiles;
 };
 
 struct world
 {
-    int32 CountX;
-    int32 CountY;
+    uint32 ChunkShift;
+    uint32 ChunkMask;
+    uint32 ChunkDim;
     
-    real32 UpperLeftX;
-    real32 UpperLeftY;
-    real32 TileWidth;
-    real32 TileHeight;
+    real32 TileSideInMeters;
+    int32 TileSideInPixels;
+    real32 MetersToPixels;
     
-    int32 TileMapCountX;
-    int32 TileMapCountY;
+    int32 TileChunkCountX;
+    int32 TileChunkCountY;
     
-    tile_map *TileMaps;
+    tile_chunk *TileChunks;
 };
 
 struct game_state
 {
-    int32 PlayerTileMapX;
-    int32 PlayerTileMapY;
-    
-    real32 PlayerX;
-    real32 PlayerY;
+    world_position PlayerP;
 };
 
 
