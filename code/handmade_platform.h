@@ -28,6 +28,8 @@ extern "C" {
     typedef int64_t int64;
     typedef int32 bool32;
     
+    typedef size_t memory_index;
+    
     typedef float real32;
     typedef double real64;
     

@@ -983,7 +983,7 @@ WinMain(HINSTANCE Instance,
             
             // TODO(ROB): How to reliably query this on Windows?
             HDC RefreshDC = GetDC(Window);
-            int MonitorRefreshHz = 60;
+            int MonitorRefreshHz = 120;
             int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
             if (Win32RefreshRate > 1)
             {
