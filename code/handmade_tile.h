@@ -18,43 +18,43 @@ struct tile_map_position
 {
     // NOTE(Rob): These are fixed point tile locations. The hight bits are the tile chunk index,
     // and the low bits are the tile index in the chunk.
-    uint32 AbsTileX;
-    uint32 AbsTileY;
-    uint32 AbsTileZ;
+    int32 AbsTileX;
+    int32 AbsTileY;
+    int32 AbsTileZ;
     
     v2 Offset_;
 };
 
 struct tile_chunk_position
 {
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-    uint32 TileChunkZ;
+    int32 TileChunkX;
+    int32 TileChunkY;
+    int32 TileChunkZ;
     
-    uint32 RelTileX;
-    uint32 RelTileY;
+    int32 RelTileX;
+    int32 RelTileY;
 };
 
 struct tile_chunk
 {
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-    uint32 TileChunkZ;
+    int32 TileChunkX;
+    int32 TileChunkY;
+    int32 TileChunkZ;
     
-    uint32 *Tiles;
+    int32 *Tiles;
     
     tile_chunk *NextInHash;
 };
 
 struct tile_map
 {
-    uint32 ChunkShift;
-    uint32 ChunkMask;
-    uint32 ChunkDim;
+    int32 ChunkShift;
+    int32 ChunkMask;
+    int32 ChunkDim;
     
     real32 TileSideInMeters;
     
-    tile_chunk *TileChunkHash[4096];
+    tile_chunk TileChunkHash[4096];
 };
 
 #define HANDMADE_TILE_H
