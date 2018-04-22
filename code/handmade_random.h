@@ -1,3 +1,11 @@
+/********************************************************************
+ *
+ *Author:  Rob Graham.
+ *Created: Sat Dec 16 22:38:47 2017
+ *Notice:  (C) Copyright 2017-2018 by Rob Graham. All Rights Reserved.
+ *
+********************************************************************/
+
 #if !defined(HANDMADE_RANDOM_H)
 
 global_variable uint32 RandomNumberTable[] =

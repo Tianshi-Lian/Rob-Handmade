@@ -1,3 +1,11 @@
+/********************************************************************
+ *
+ *Author:  Rob Graham.
+ *Created: Fri May 26 20:13:47 2017
+ *Notice:  (C) Copyright 2017-2018 by Rob Graham. All Rights Reserved.
+ *
+********************************************************************/
+
 #if !defined(WIN32_HANDMADE_H)
 
 struct win32_offscreen_buffer
@@ -24,7 +32,6 @@ struct win32_sound_output
     int BytesPerSample;
     DWORD SecondaryBufferSize;
     DWORD SafetyBytes;
-    real32 tSine;
     // TODO(ROB): Should running sample index be in bytes as well?
     // TODO(ROB): Math gets simpler if we add a bytes per second field.
     

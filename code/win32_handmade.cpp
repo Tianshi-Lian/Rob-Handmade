@@ -1,3 +1,11 @@
+/********************************************************************
+ *
+ *Author:  Rob Graham.
+ *Created: Fri May 26 20:13:47 2017
+ *Notice:  (C) Copyright 2017-2018 by Rob Graham. All Rights Reserved.
+ *
+********************************************************************/
+
 /*
 TODO(rob): This is not final platform layer
 
@@ -19,7 +27,7 @@ TODO(rob): This is not final platform layer
  Just a partial list of stuff.
 */
 
-#include "handmade.h"
+#include "handmade_platform.h"
 
 #include <malloc.h>
 #include <windows.h>
@@ -35,6 +43,8 @@ global_variable bool32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable int64 GlobalPerfCountFrequency;
+global_variable bool32 DEBUGGlobalShowCursor;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
 
 // NOTE(rob): XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* State)
@@ -59,6 +69,34 @@ global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 // NOTE(rob): DirectSoundCreate
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);;
+
+internal void
+ToggleFullscreen(HWND Window)
+{
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW)
+    {
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if (GetWindowPlacement(Window, &GlobalWindowPosition) && 
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP, 
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, 0, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
 
 internal int
 StringLength(char *String)
@@ -183,21 +221,25 @@ Win32GetLastWriteTime(char *Filename)
 }
 
 internal win32_game_code
-Win32LoadGameCode(char *Filename, char *TempDLLName)
+Win32LoadGameCode(char *Filename, char *TempDLLName, char *LockFileName)
 {
     win32_game_code Result = {};
     
-    Result.DLLLastWriteTime = Win32GetLastWriteTime(Filename);
-    
-    CopyFile(Filename, TempDLLName, FALSE);
-    
-    Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-    if (Result.GameCodeDLL)
+    WIN32_FILE_ATTRIBUTE_DATA Ignored;
+    if (!GetFileAttributesEx(LockFileName, GetFileExInfoStandard, &Ignored))
     {
-        Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-        Result.GetSoundSamples = (game_get_sounds_samples*)GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+        Result.DLLLastWriteTime = Win32GetLastWriteTime(Filename);
         
-        Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+        CopyFile(Filename, TempDLLName, FALSE);
+        
+        Result.GameCodeDLL = LoadLibraryA(TempDLLName);
+        if (Result.GameCodeDLL)
+        {
+            Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+            Result.GetSoundSamples = (game_get_sounds_samples*)GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+            
+            Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+        }
     }
     
     if (!Result.IsValid)
@@ -388,21 +430,37 @@ internal void
 Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
                            HDC DeviceContext, int WindowWidth, int WindowHeight)
 {
-    int OffsetX = 10;
-    int OffsetY = 10;
-    
-    PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
-    PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
-    PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
-    PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
-    
-    // TODO(rob): Aspect ratio correction.
-    StretchDIBits(DeviceContext,
-                  OffsetX, OffsetY, Buffer->Width, Buffer->Height,
-                  0, 0, Buffer->Width, Buffer->Height,
-                  Buffer->Memory,
-                  &Buffer->Info,
-                  DIB_RGB_COLORS, SRCCOPY);
+    if ((WindowWidth >= Buffer->Width*2) &&
+        (WindowHeight >= Buffer->Height*2))
+    {
+        int OffsetX = (WindowWidth - (2*Buffer->Width)) / 2;
+        int OffsetY = (WindowHeight - (2*Buffer->Height)) / 2;
+        
+        StretchDIBits(DeviceContext,
+                      OffsetX, OffsetY, 2*Buffer->Width, 2*Buffer->Height,
+                      0, 0, Buffer->Width, Buffer->Height,
+                      Buffer->Memory,
+                      &Buffer->Info,
+                      DIB_RGB_COLORS, SRCCOPY);
+    }
+    else
+    {
+        int OffsetX = 10;
+        int OffsetY = 10;
+        
+        PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+        PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+        PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+        PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
+        
+        // TODO(rob): Aspect ratio correction.
+        StretchDIBits(DeviceContext,
+                      OffsetX, OffsetY, Buffer->Width, Buffer->Height,
+                      0, 0, Buffer->Width, Buffer->Height,
+                      Buffer->Memory,
+                      &Buffer->Info,
+                      DIB_RGB_COLORS, SRCCOPY);
+    }
 }
 
 LRESULT CALLBACK
@@ -419,6 +477,18 @@ Win32MainWindowCallback(HWND Window,
         {
             // TODO(rob): Handle this with a Message to the user.
             GlobalRunning = false;
+        } break;
+        
+        case WM_SETCURSOR:
+        {
+            if (DEBUGGlobalShowCursor)
+            {
+                Result = DefWindowProcA(Window, Message, WParam, LParam);
+            }
+            else
+            {
+                SetCursor(0);
+            }
         } break;
         
         case WM_ACTIVATEAPP:
@@ -739,11 +809,11 @@ Win32ProcessPendingMessages(win32_state *State, game_controller_input* KeyboardC
                     }
                     else if (VKCode == VK_ESCAPE)
                     {
-                        Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
+                        Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
                     }
                     else if (VKCode == VK_SPACE)
                     {
-                        Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
+                        Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
                     }
 #if HANDMADE_INTERNAL
                     else if (VKCode == 'P')
@@ -776,12 +846,23 @@ Win32ProcessPendingMessages(win32_state *State, game_controller_input* KeyboardC
                         }
                     }
 #endif
-                }
-                
-                bool32 AltKeyWasDown = ((Message.lParam & (1 << 29)) != 0);
-                if ((VKCode == VK_F4) && AltKeyWasDown)
-                {
-                    GlobalRunning = false;
+                    if (IsDown)
+                    {
+                        
+                        bool32 AltKeyWasDown = ((Message.lParam & (1 << 29)) != 0);
+                        if ((VKCode == VK_F4) && AltKeyWasDown)
+                        {
+                            GlobalRunning = false;
+                        }
+                        if ((VKCode == VK_RETURN) && AltKeyWasDown)
+                        {
+                            if (Message.hwnd)
+                            {
+                                ToggleFullscreen(Message.hwnd);
+                            }
+                        }
+                    }
+                    
                 }
                 
             } break;
@@ -945,6 +1026,12 @@ WinMain(HINSTANCE Instance,
     char TempGameCodeDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
     Win32BuildEXEPathFilename(&Win32State, "handmade_temp.dll",
                               sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
+    
+    
+    char GameCodeLockFullPath[WIN32_STATE_FILE_NAME_COUNT];
+    Win32BuildEXEPathFilename(&Win32State, "lock.tmp",
+                              sizeof(GameCodeLockFullPath), GameCodeLockFullPath);
+    
     // NOTE(ROB): Set the Windows scheduler granularity to 1ms
     // so that our Sleep() can be more granular.
     UINT DesiredSchedulerMS = 1;
@@ -952,6 +1039,9 @@ WinMain(HINSTANCE Instance,
     
     Win32LoadXInput();
     
+#if HANDMADE_INTERNAL
+    DEBUGGlobalShowCursor = true;
+#endif
     WNDCLASSA WindowClass = {};
     
     Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
@@ -959,6 +1049,7 @@ WinMain(HINSTANCE Instance,
     WindowClass.style = CS_HREDRAW|CS_VREDRAW;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
+    WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
     //    WindowClass.hIcon;
     WindowClass.lpszClassName = "HandemadeHeroWindowClass";
     
@@ -1090,7 +1181,9 @@ WinMain(HINSTANCE Instance,
                 real32 AudioLatencySeconds = 0;
                 bool32 SoundIsValid = false;
                 
-                win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+                win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, 
+                                                         TempGameCodeDLLFullPath,
+                                                         GameCodeLockFullPath);
                 uint32 LoadCounter = 0;
                 
                 int64 LastCycleCounter = __rdtsc();
@@ -1101,7 +1194,9 @@ WinMain(HINSTANCE Instance,
                     if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
                     {
                         Win32UnloadGameCode(&Game);
-                        Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath); 
+                        Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, 
+                                                 TempGameCodeDLLFullPath,
+                                                 GameCodeLockFullPath);
                     }
                     
                     // TODO(ROB): Zero macro.
@@ -1447,7 +1542,7 @@ WinMain(HINSTANCE Instance,
                         NewInput = OldInput;
                         OldInput = Temp;
                         
-#if 0
+#if 1
                         uint64 EndCycleCounter = __rdtsc();
                         uint64 CyclesElapsed = EndCycleCounter - LastCycleCounter;
                         LastCycleCounter = EndCycleCounter;
