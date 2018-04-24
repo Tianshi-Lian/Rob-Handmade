@@ -71,7 +71,7 @@ struct high_entity
 {
     v2 P;
     v2 dP;
-    uint32 AbsTileZ;
+    uint32 ChunkZ;
     uint32 FacingDirection;
     
     real32 Z;
@@ -111,7 +111,7 @@ struct game_state
     uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
     
     uint32 LowEntityCount;
-    low_entity LowEntities[4096];
+    low_entity LowEntities[100000];
     
     uint32 HighEntityCount;
     high_entity HighEntities_[256];

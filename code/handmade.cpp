@@ -287,7 +287,7 @@ MakeEntityHighFrequency(game_state *GameState, uint32 LowIndex)
                                              &EntityLow->P, &GameState->CameraP);
             EntityHigh->P = Diff.dXY;
             EntityHigh->dP = V2(0, 0);
-            EntityHigh->AbsTileZ = EntityLow->P.AbsTileZ;
+            EntityHigh->ChunkZ = EntityLow->P.ChunkZ;
             EntityHigh->FacingDirection = 0;
             EntityHigh->LowEntityIndex = LowIndex;
             
@@ -371,14 +371,12 @@ AddLowEntity(game_state *GameState, entity_type Type)
 }
 
 internal uint32
-AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+AddWall(game_state *GameState, uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ)
 {
     uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall);
     low_entity *EntityLow = GetLowEntity(GameState, EntityIndex);
     
-    EntityLow->P.AbsTileX = AbsTileX;
-    EntityLow->P.AbsTileY = AbsTileY;
-    EntityLow->P.AbsTileZ = AbsTileZ;
+    EntityLow->P = ChunkPositionFromTilePosition(GameState->World, ChunkX, ChunkY, ChunkZ);
     EntityLow->Height = GameState->World->TileSideInMeters; // 1.4f;
     EntityLow->Width = EntityLow->Height;
     EntityLow->Collides = true;
@@ -522,7 +520,7 @@ MovePlayer(game_state *GameState, entity Entity, real32 dt, v2 ddP)
             
             high_entity *HitHigh = GameState->HighEntities_ + HitHighEntityIndex;
             low_entity *HitLow = GameState->LowEntities + HitHigh->LowEntityIndex;
-            Entity.High->AbsTileZ += HitLow->dAbsTileZ;
+            //Entity.High->ChunkZ += HitLow->dAbsTileZ;
         }
         else
         {
@@ -577,25 +575,27 @@ SetCamera(game_state *GameState, world_position NewCameraP)
     v2 EntityOffsetForFrame = -dCameraP.dXY;
     OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraBounds);
     
-    int32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
-    int32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
-    int32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
-    int32 MaxTileY = NewCameraP.AbsTileY + TileSpanY/2;
+#if 0    
+    int32 MinTileX = NewCameraP.ChunkX - TileSpanX/2;
+    int32 MaxTileX = NewCameraP.ChunkX + TileSpanX/2;
+    int32 MinTileY = NewCameraP.ChunkY - TileSpanY/2;
+    int32 MaxTileY = NewCameraP.ChunkY + TileSpanY/2;
     for (uint32 EntityIndex = 1; EntityIndex < GameState->LowEntityCount; ++EntityIndex)
     {
         low_entity *Low = GameState->LowEntities + EntityIndex;
         if (Low->HighEntityIndex == 0)
         {
-            if ((Low->P.AbsTileZ == NewCameraP.AbsTileZ) &&
-                (Low->P.AbsTileX >= MinTileX) &&
-                (Low->P.AbsTileX <= MaxTileX) &&
-                (Low->P.AbsTileY >= MinTileY) &&
-                (Low->P.AbsTileY <= MaxTileY))
+            if ((Low->P.ChunkZ == NewCameraP.ChunkZ) &&
+                (Low->P.ChunkX >= MinTileX) &&
+                (Low->P.ChunkX <= MaxTileX) &&
+                (Low->P.ChunkY >= MinTileY) &&
+                (Low->P.ChunkY <= MaxTileY))
             {
                 MakeEntityHighFrequency(GameState, EntityIndex);
             }
         }
     }
+#endif
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -674,7 +674,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         bool32 DoorUp = false;
         bool32 DoorDown = false;
         for (uint32 ScreenIndex = 0; 
-             ScreenIndex < 2; 
+             ScreenIndex < 2000; 
              ++ScreenIndex)
         {
             // TODO(Rob): Random number generator!
@@ -799,9 +799,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         
         world_position NewCameraP = {};
-        NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
-        NewCameraP.AbsTileY = ScreenBaseY*TilesPerHeight + 9/2;
-        NewCameraP.AbsTileZ = ScreenBaseZ;
+        NewCameraP = ChunkPositionFromTilePosition(GameState->World,
+                                                   ScreenBaseX*TilesPerWidth + 17/2,
+                                                   ScreenBaseY*TilesPerHeight + 9/2,
+                                                   ScreenBaseZ);
         SetCamera(GameState, NewCameraP);
         
         Memory->IsInitialized = true;
@@ -876,9 +877,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         world_position NewCameraP = GameState->CameraP;
         
-        GameState->CameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
+        NewCameraP.ChunkZ = CameraFollowingEntity.Low->P.ChunkZ;
         
-#if 1
+#if 0
         if (CameraFollowingEntity.High->P.X > (9.0f*World->TileSideInMeters))
         {
             NewCameraP.AbsTileX += 17;
@@ -896,23 +897,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             NewCameraP.AbsTileY -= 9;
         }
 #else
-        
-        if (CameraFollowingEntity.High->P.X > (1.0f*World->TileSideInMeters))
-        {
-            NewCameraP.AbsTileX += 1;
-        }
-        if (CameraFollowingEntity.High->P.X < -(1.0f*World->TileSideInMeters))
-        {
-            NewCameraP.AbsTileX -= 1;
-        }
-        if (CameraFollowingEntity.High->P.Y > (1.0f*World->TileSideInMeters))
-        {
-            NewCameraP.AbsTileY += 1;
-        }
-        if (CameraFollowingEntity.High->P.Y < -(1.0f*World->TileSideInMeters))
-        {
-            NewCameraP.AbsTileY -= 1;
-        }
+        NewCameraP = CameraFollowingEntity.Low->P;
 #endif
         
         // TODO(Rob): Map new entities in and old entities out!!!
