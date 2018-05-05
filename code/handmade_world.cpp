@@ -109,7 +109,7 @@ RecanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel)
 }
 
 inline world_position
-MapIntoTileSpace(world *World, world_position BasePos, v2 Offset)
+MapIntoChunkSpace(world *World, world_position BasePos, v2 Offset)
 {
     world_position Result = BasePos;
     
@@ -181,33 +181,33 @@ inline void
 ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
                      world_position *OldP, world_position *NewP)
 {
-    if (OldP &&AreInSameChunk(World, OldP, NewP))
+    if(OldP && AreInSameChunk(World, OldP, NewP))
     {
-        // NOTE(Rob): Leave entity where it is.
+        // NOTE(Rob): Leave entity where it is
     }
     else
     {
-        if (OldP)
+        if(OldP)
         {
-            // NOTE(Rob): Pull the entity out of it's old entity block.
-            world_chunk *Chunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ);
-            Assert(Chunk);
-            
-            if (Chunk)
+            // NOTE(Rob): Pull the entity out of its old entity block
+            world_chunk *Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
+            Assert(Chunk);            
+            if(Chunk)
             {
+                bool32 NotFound = true;
                 world_entity_block *FirstBlock = &Chunk->FirstBlock;
-                for (world_entity_block *Block = FirstBlock; Block; Block = Block->Next)
+                for(world_entity_block *Block = FirstBlock; Block && NotFound; Block = Block->Next)
                 {
-                    for (uint32 Index = 0; Index < Block->EntityCount; ++Index)
+                    for(uint32 Index = 0; (Index < Block->EntityCount) && NotFound; ++Index)
                     {
-                        if (Block->LowEntityIndex[Index] == LowEntityIndex)
+                        if(Block->LowEntityIndex[Index] == LowEntityIndex)
                         {
                             Assert(FirstBlock->EntityCount > 0);
-                            Block->LowEntityIndex[Index] = 
+                            Block->LowEntityIndex[Index] =
                                 FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
-                            if (FirstBlock->EntityCount == 0)
+                            if(FirstBlock->EntityCount == 0)
                             {
-                                if (FirstBlock->Next)
+                                if(FirstBlock->Next)
                                 {
                                     world_entity_block *NextBlock = FirstBlock->Next;
                                     *FirstBlock = *NextBlock;
@@ -217,10 +217,9 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
                                 }
                             }
                             
-                            Block = 0;
-                            break;
+                            NotFound = false;
                         }
-                    }
+                    }    
                 }
             }
         }

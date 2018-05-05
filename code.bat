@@ -1,2 +1,2 @@
 @echo off
-start 4ed -W -f 20 .
+start 4ed -W -f 18 .

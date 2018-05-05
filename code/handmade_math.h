@@ -17,12 +17,24 @@ union v2
     real32 E[2];
 };
 
-inline v2 V2(real32 X, real32 Y)
+inline v2 
+V2(real32 X, real32 Y)
 {
     v2 Result;
     
     Result.X = X;
     Result.Y = Y;
+    
+    return (Result);
+}
+
+inline v2 
+V2(real32 Value)
+{
+    v2 Result;
+    
+    Result.X = Value;
+    Result.Y = Value;
     
     return (Result);
 }
@@ -124,6 +136,27 @@ struct rectangle2
     v2 Min;
     v2 Max;
 };
+
+inline v2
+GetMinCorner(rectangle2 Rect)
+{
+    v2 Result = Rect.Min;
+    return (Result);
+}
+
+inline v2
+GetMaxCorner(rectangle2 Rect)
+{
+    v2 Result = Rect.Max;
+    return (Result);
+}
+
+inline v2
+GetCenter(rectangle2 Rect)
+{
+    v2 Result = 0.5f*(Rect.Min + Rect.Max);
+    return (Result);
+}
 
 inline rectangle2
 RectMinMax(v2 Min, v2 Max)
